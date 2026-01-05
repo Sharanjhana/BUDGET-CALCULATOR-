@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Budget Calculator - Dark Neon Theme</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- html2pdf -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    /* ----------------- Dark Neon Theme ----------------- */
+    :root{
+      --bg-color:#0d0d0d;
+      --card-bg:#111111;
+      --card-shadow:rgba(0,255,255,0.2);
+      --primary:#00fff7;
+      --primary-hover:#00d4e0;
+      --btn-ghost-bg:#222;
+      --btn-ghost-text:#0ff;
+      --income-color:#00ff87;
+      --expense-color:#ff073a;
+      --text-color:#00fff7;
+      --muted:#666;
+      --goal-color:#ffb300;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      padding: 18px;
+      display:flex;
+      justify-content:center;
+    }
+
+    .wrap { width: 900px; max-width: 98%; }
+
+    .card {
+      background: var(--card-bg);
+      padding:16px;
+      border-radius:12px;
+      box-shadow:0 0 10px var(--card-shadow), 0 0 20px var(--card-shadow);
+      border:1px solid var(--primary);
+    }
+
+    h2,h3,h4 { color: var(--primary); }
+    .row { display:flex; gap:12px; align-items:center; }
+    .col { display:flex; flex-direction:column; gap:8px; }
+    input, select, button {
+      padding:10px;
+      border-radius:8px;
+      border:1px solid var(--primary);
+      background:#111;
+      color: var(--text-color);
+      font-size:14px;
+      box-shadow: 0 0 6px var(--primary);
+    }
+    button { cursor:pointer; border:none; }
+    .btn-primary {
+      background: var(--primary);
+      color:#000;
+      box-shadow:0 0 8px var(--primary),0 0 16px var(--primary);
+      transition:0.2s;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      box-shadow:0 0 12px var(--primary-hover),0 0 24px var(--primary-hover);
+    }
+    .btn-ghost {
+      background: var(--btn-ghost-bg);
+      color: var(--btn-ghost-text);
+      box-shadow:0 0 4px var(--btn-ghost-text);
+    }
+    .small { color: var(--muted); font-size:13px; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+    .summary { margin-top:12px; background:#111; padding:12px; border-radius:8px; border:1px solid var(--primary); }
+    canvas { width:100% !important; height:220px !important; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+    .username { font-weight:700; color: var(--primary); }
+    .hidden { display:none !important; }
+    #totalIncome { color: var(--income-color); font-weight:bold; }
+    #totalExpense { color: var(--expense-color); font-weight:bold; }
+    #netBalance { color: var(--primary); font-weight:bold; }
+    @media(max-width:760px){ .grid-2{grid-template-columns:1fr;} .row{flex-direction:column;align-items:stretch;} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- LOGIN CARD -->
+    <div id="loginCard" class="card" style="max-width:420px;margin:auto;">
+      <h2>Login</h2>
+      <div class="small">Enter a username to continue (no password for now).</div>
+      <div style="height:12px"></div>
+      <input id="loginName" placeholder="Username (eg: jha_na)" />
+      <div style="height:8px"></div>
+      <div class="row">
+        <button class="btn-primary" id="btnLogin">Login</button>
+        <button class="btn-ghost" id="btnGuest">Continue as Guest</button>
+      </div>
+    </div>
+
+    <!-- APP CARD -->
+    <div id="appCard" class="card hidden" style="margin-top:12px;">
+      <div class="topbar">
+        <div>
+          <div class="small">Welcome, <span id="showUser" class="username"></span></div>
+          <div class="small" id="lastSaved" style="opacity:.8"></div>
+        </div>
+        <div class="row">
+          <button class="btn-ghost" id="btnLogout">Logout</button>
+          <button class="btn-ghost" id="btnResetAll">Reset User Data</button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Income Column -->
+        <div>
+          <h3>Add Income</h3>
+          <div class="small">Separate section for incomes</div>
+          <div style="height:8px"></div>
+          <label class="small">Category</label>
+          <select id="incomeCategory">
+            <option>Salary</option><option>Freelancing</option><option>Bonus</option><option>Other</option>
+          </select>
+          <label class="small">Amount (₹)</label>
+          <input id="incomeAmount" type="number" placeholder="e.g. 5000" />
+          <div style="height:8px"></div>
+          <div class="row">
+            <button class="btn-primary" id="addIncomeBtn">Add Income</button>
+            <button class="btn-ghost" id="clearIncomeBtn">Clear</button>
+          </div>
+        </div>
+
+        <!-- Expense Column -->
+        <div>
+          <h3>Add Expense</h3>
+          <div class="small">Separate section for expenses</div>
+          <div style="height:8px"></div>
+          <label class="small">Category</label>
+          <select id="expenseCategory">
+            <option>Food</option><option>Travel</option><option>Shopping</option><option>Recharge</option><option>Other</option>
+          </select>
+          <label class="small">Amount (₹)</label>
+          <input id="expenseAmount" type="number" placeholder="e.g. 200" />
+          <div style="height:8px"></div>
+          <div class="row">
+            <button class="btn-primary" id="addExpenseBtn">Add Expense</button>
+            <button class="btn-ghost" id="clearExpenseBtn">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary & Actions -->
+      <div class="summary" id="summaryBox">
+        <div class="row" style="justify-content:space-between;align-items:center;">
+          <div>
+            <div><strong>Total Income:</strong> ₹<span id="totalIncome">0</span></div>
+            <div><strong>Total Expense:</strong> ₹<span id="totalExpense">0</span></div>
+            <div><strong>Net Balance:</strong> ₹<span id="netBalance">0</span></div>
+            <div><strong>Status:</strong> <span id="statusText">-</span></div>
+          </div>
+          <div style="min-width:180px;text-align:right;">
+            <div class="small">Monthly Goal</div>
+            <input id="goalAmount" type="number" placeholder="set goal ₹" style="width:160px;margin-top:6px" />
+            <div style="height:8px"></div>
+            <button class="btn-primary" id="btnSaveGoal">Save Goal</button>
+          </div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="row">
+          <button class="btn-ghost" id="btnViewHistory">View History</button>
+          <button class="btn-ghost" id="btnDownloadPDF">Download PDF</button>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div id="historySection" class="card" style="margin-top:12px; display:none;">
+        <h3 style="margin:4px 0">History</h3>
+        <div id="recordsList" class="small" style="max-height:220px; overflow:auto;"></div>
+      </div>
+
+      <!-- Charts -->
+      <div style="margin-top:12px;">
+        <div class="card">
+          <h4>Charts</h4>
+          <canvas id="balanceChart"></canvas>
+          <div style="height:12px"></div>
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+      <div class="small" id="messageBox" style="min-height:18px"></div>
+    </div>
+  </div>
+
+<script>
+/* --------------------------- Utility & Functions --------------------------- */
+const loginCard = document.getElementById('loginCard');
+const appCard = document.getElementById('appCard');
+const showUser = document.getElementById('showUser');
+const messageBox = document.getElementById('messageBox');
+const lastSaved = document.getElementById('lastSaved');
+let currentUser = localStorage.getItem('currentUser') || null;
+let userKey = (u) => `budget_${u}`;
+function defaultData() { return { income:0, expense:0, records:[], goal:0, updatedAt:null }; }
+function loadDataFor(user){ const raw=localStorage.getItem(userKey(user)); return raw?JSON.parse(raw):defaultData(); }
+function saveDataFor(user,data){ data.updatedAt=new Date().toISOString(); localStorage.setItem(userKey(user),JSON.stringify(data)); }
+function showMessage(txt,timeout=2500){ messageBox.textContent=txt; clearTimeout(showMessage._t); showMessage._t=setTimeout(()=>{ if(messageBox.textContent===txt) messageBox.textContent=''; },timeout); }
+
+/* --------------------------- Login / Logout --------------------------- */
+document.getElementById('btnLogin').addEventListener('click',()=>{ const name=document.getElementById('loginName').value.trim(); if(!name) return alert('Enter a username'); currentUser=name; localStorage.setItem('currentUser',currentUser); openApp(); });
+document.getElementById('btnGuest').addEventListener('click',()=>{ currentUser='guest'; localStorage.setItem('currentUser',currentUser); openApp(); });
+document.getElementById('btnLogout').addEventListener('click',()=>{ localStorage.removeItem('currentUser'); currentUser=null; loginCard.classList.remove('hidden'); appCard.classList.add('hidden'); });
+
+/* --------------------------- Elements --------------------------- */
+const incomeAmount = document.getElementById('incomeAmount');
+const expenseAmount = document.getElementById('expenseAmount');
+const incomeCategory = document.getElementById('incomeCategory');
+const expenseCategory = document.getElementById('expenseCategory');
+const addIncomeBtn = document.getElementById('addIncomeBtn');
+const addExpenseBtn = document.getElementById('addExpenseBtn');
+const clearIncomeBtn = document.getElementById('clearIncomeBtn');
+const clearExpenseBtn = document.getElementById('clearExpenseBtn');
+const totalIncomeEl = document.getElementById('totalIncome');
+const totalExpenseEl = document.getElementById('totalExpense');
+const netBalanceEl = document.getElementById('netBalance');
+const statusText = document.getElementById('statusText');
+const btnSaveGoal = document.getElementById('btnSaveGoal');
+const goalAmount = document.getElementById('goalAmount');
+const btnViewHistory = document.getElementById('btnViewHistory');
+const recordsList = document.getElementById('recordsList');
+const historySection = document.getElementById('historySection');
+const btnDownloadPDF = document.getElementById('btnDownloadPDF');
+const btnResetAll = document.getElementById('btnResetAll');
+
+/* --------------------------- Charts --------------------------- */
+let balanceChart=null, categoryChart=null;
+
+/* --------------------------- App functions --------------------------- */
+function openApp(){ loginCard.classList.add('hidden'); appCard.classList.remove('hidden'); showUser.textContent=currentUser; loadAndRender(); }
+function loadAndRender(){ if(!currentUser)return; const data=loadDataFor(currentUser); updateSummaryUI(data); renderHistory(data); renderCharts(data); lastSaved.textContent=data.updatedAt?`Saved: ${new Date(data.updatedAt).toLocaleString()}`:''; }
+
+/* Add Income */
+addIncomeBtn.addEventListener('click',()=>{
+  const amt=parseFloat(incomeAmount.value); if(isNaN(amt)||amt<=0)return showMessage('Enter valid income amount'); 
+  const cat=incomeCategory.value||'Other'; const data=loadDataFor(currentUser);
+  data.income+=amt; data.records.unshift({type:'income',category:cat,amount:amt,date:new Date().toISOString()});
+  saveDataFor(currentUser,data); incomeAmount.value=''; showMessage('Income added'); loadAndRender();
+});
+
+/* Add Expense */
+addExpenseBtn.addEventListener('click',()=>{
+  const amt=parseFloat(expenseAmount.value); if(isNaN(amt)||amt<=0)return showMessage('Enter valid expense amount'); 
+  const cat=expenseCategory.value||'Other'; const data=loadDataFor(currentUser);
+  data.expense+=amt; data.records.unshift({type:'expense',category:cat,amount:amt,date:new Date().toISOString()});
+  saveDataFor(currentUser,data); expenseAmount.value=''; showMessage('Expense added'); loadAndRender();
+});
+
+/* Clear inputs */
+clearIncomeBtn.addEventListener('click',()=>{ incomeAmount.value=''; });
+clearExpenseBtn.addEventListener('click',()=>{ expenseAmount.value=''; });
+
+/* Save goal */
+btnSaveGoal.addEventListener('click',()=>{
+  const g=parseFloat(goalAmount.value)||0; const data=loadDataFor(currentUser);
+  data.goal=g; saveDataFor(currentUser,data); showMessage('Goal saved'); loadAndRender();
+});
+
+/* View History toggle */
+btnViewHistory.addEventListener('click',()=>{ historySection.style.display=historySection.style.display==='none'?'block':'none'; });
+
+/* Download PDF */
+btnDownloadPDF.addEventListener('click',()=>{
+  const data=loadDataFor(currentUser); const el=document.createElement('div'); el.style.padding='12px';
+  el.innerHTML=`<h2>Budget Report - ${currentUser}</h2><p>Total Income: ₹${formatNum(data.income)}</p><p>Total Expense: ₹${formatNum(data.expense)}</p><p>Net Balance: ₹${formatNum(data.income-data.expense)}</p><h3>Records</h3>${data.records.slice(0,50).map(r=>`<div>${new Date(r.date).toLocaleString()} - ${r.type.toUpperCase()} - ${r.category} - ₹${formatNum(r.amount)}</div>`).join('')}`;
+  html2pdf().from(el).save(`BudgetReport_${currentUser}.pdf`);
+});
+
+/* Reset user data */
+btnResetAll.addEventListener('click',()=>{ if(!confirm(`Delete ALL data for user "${currentUser}"? This cannot be undone.`)) return; localStorage.removeItem(userKey(currentUser)); loadAndRender(); showMessage('User data cleared'); });
+
+/* Update summary, history, charts */
+function updateSummaryUI(data){
+  totalIncomeEl.textContent=formatNum(data.income);
+  totalExpenseEl.textContent=formatNum(data.expense);
+  const bal=data.income-data.expense; netBalanceEl.textContent=formatNum(bal);
+  statusText.textContent=bal>=0?'Savings 😊':'Overspending ⚠️';
+  goalAmount.value=data.goal||'';
+}
+
+function renderHistory(data){
+  recordsList.innerHTML=''; if(!data.records || data.records.length===0){ recordsList.innerHTML='<div class="small">No records yet.</div>'; return; }
+  data.records.forEach(r=>{ const d=new Date(r.date).toLocaleString(); const line=document.createElement('div'); line.innerHTML=`<strong>${d}</strong> — ${r.type.toUpperCase()} • ${r.category} • ₹${formatNum(r.amount)}`; recordsList.appendChild(line); });
+}
+
+function renderCharts(data){
+  const ctx1=document.getElementById('balanceChart').getContext('2d'); if(balanceChart)balanceChart.destroy();
+  balanceChart=new Chart(ctx1,{type:'bar',data:{labels:['Income','Expense'],datasets:[{label:'Amount (₹)',data:[data.income||0,data.expense||0],backgroundColor:[getComputedStyle(document.documentElement).getPropertyValue('--income-color'),getComputedStyle(document.documentElement).getPropertyValue('--expense-color')]}]},options:{responsive:true,plugins:{legend:{display:false}}}});
+  
+  const categories={}; (data.records||[]).forEach(r=>{ if(r.type==='expense') categories[r.category]=(categories[r.category]||0)+r.amount; });
+  const ctx2=document.getElementById('categoryChart').getContext('2d'); if(categoryChart)categoryChart.destroy();
+  categoryChart=new Chart(ctx2,{type:'pie',data:{labels:Object.keys(categories).length?Object.keys(categories):['No expenses'],datasets:[{data:Object.keys(categories).length?Object.values(categories):[1],backgroundColor:['#ff073a','#ff6a00','#ff00ff','#00fff7','#00ff87','#ffb300']}]},options:{responsive:true,plugins:{legend:{position:'bottom'}}}});
+}
+
+function formatNum(v){ return Number(v||0).toLocaleString(undefined,{maximumFractionDigits:2}); }
+
+/* Auto-load if logged in */
+if(currentUser){ openApp(); } else { loginCard.classList.remove('hidden'); appCard.classList.add('hidden'); }
+</script>
+</body>
+</html>
